@@ -19,11 +19,13 @@ my $utf8 = Encode::find_encoding('utf-8');
 
 sub fix_json_mojibake
 {
-    my $chars = shift;
-    $chars = Unicode::Normalize::NFC($utf8->decode(pack('(H2)*', $chars =~ m{\\u00(..)}sg)));
-    substr($JSON->encode($chars), 1, -1)
+    my $in = shift;
+    my $out = eval { $utf8->decode(pack('(H2)*', $in =~ m{\\u00(..)}sg), 1) };
+    return defined($out)
+	? substr($JSON->encode(Unicode::Normalize::NFC($out)), 1, -1)
+	: $in # TODO check that $in is properly encoded
 }
 
-$json =~ s/((?:\\u00..)+)/ fix_json_mojibake($1) /gse;
+$json =~ s/((?:\\u00..){2,})(?!\\u)/ fix_json_mojibake($1) /gse;
 
 print $json;
