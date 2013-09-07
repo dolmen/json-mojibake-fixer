@@ -11,6 +11,10 @@ use warnings;
 use Unicode::Normalize;
 use JSON;
 use Encode;
+use Getopt::Long;
+
+my $check;
+GetOptions('check|c' => \$check) or die "invalid arguments";
 
 my $json = do { local $/; <> };
 
@@ -27,5 +31,16 @@ sub fix_json_mojibake
 }
 
 $json =~ s/((?:\\u00..){2,})(?!\\u)/ fix_json_mojibake($1) /gse;
+
+if ($check) {
+    my $utf16 = Encode::find_encoding('UTF-16BE');
+    while ($json =~ m/((?:\\u....)+)/g) {
+	my $encoded = $1;
+	# If the following line fails, the encoding is broken
+	eval {
+	    $utf16->decode(pack('(H4)*', $encoded =~ m{\\u(....)}sg, 1))
+	} or die "invalid string: $encoded: $@"
+    }
+}
 
 print $json;
